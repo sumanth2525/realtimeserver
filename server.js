@@ -1,21 +1,33 @@
-io.on('connection', socket => {
-  // existing chat handlers here…
+// 1. Bring in express and http
+const express = require("express");
+const app = express();
+const http = require("http").createServer(app);
 
-  // when a client joins audio chat
-  socket.on('webrtc-join', () => {
-    // let everyone else know there’s a new peer
-    socket.broadcast.emit('webrtc-new-user', { socketId: socket.id });
+// 2. Import Socket.IO and attach to the HTTP server
+const { Server } = require("socket.io");
+const io = new Server(http, {
+  cors: { origin: "*" }        // adjust CORS as needed
+});
+
+// 3. (Optional) Serve your front-end from a 'public' folder
+app.use(express.static("public"));
+
+// 4. Wire up your socket handlers
+io.on("connection", socket => {
+  console.log("⚡️ new client connected:", socket.id);
+
+  socket.on("message", msg => {
+    // broadcast the message to everyone
+    io.emit("message", msg);
   });
 
-  socket.on('webrtc-offer', ({ to, offer }) => {
-    io.to(to).emit('webrtc-offer', { from: socket.id, offer });
+  socket.on("disconnect", () => {
+    console.log("🔌 client disconnected");
   });
+});
 
-  socket.on('webrtc-answer', ({ to, answer }) => {
-    io.to(to).emit('webrtc-answer', { from: socket.id, answer });
-  });
-
-  socket.on('webrtc-ice-candidate', ({ to, candidate }) => {
-    io.to(to).emit('webrtc-ice-candidate', { from: socket.id, candidate });
-  });
+// 5. Listen on the port Render gives us, or fallback to 10000 locally
+const PORT = process.env.PORT || 10000;
+http.listen(PORT, () => {
+  console.log(`🚀 Server listening on port ${PORT}`);
 });
